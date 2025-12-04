@@ -15,15 +15,9 @@ SERVICE_IDS = {
 
 st.title("📦 International Quoting Tool")
 
-# ---------------------------
-# User Input Section
-# ---------------------------
-
 st.header("Destination Address")
 
-to_name = st.text_input("Recipient Name")
-to_company = st.text_input("Company", "Big Al's")
-to_address1 = st.text_input("Address 1", "845 Sherbrooke Street West")
+to_address1 = st.text_input("Address", "845 Sherbrooke Street West")
 to_city = st.text_input("City", "Montreal")
 to_state = st.text_input("State / Province (ISO Code)", "QC")
 to_postal = st.text_input("Postal Code", "H3A 0G4")
@@ -38,12 +32,16 @@ height = st.number_input("Height (inches)", value=6.0)
 
 st.header("Customs Information")
 
-customs_description = st.text_input("Customs Description", "Books")
 harm_code = st.text_input("HS Code", "4901.04")
 customs_value = st.number_input("Declared Value", value=10.0)
 country_of_mfg = st.text_input("Country of Manufacture", "US")
 
 if st.button("Get Quotes"):
+
+    if not to_address1 or not to_city or not to_postal or not to_country:
+        st.error("Please fill in all destination address fields.")
+        st.stop()
+    
     st.write("Fetching quotes...")
 
     def make_payload(rating_id):
@@ -66,8 +64,8 @@ if st.button("Get Quotes"):
                 "email": "testEmployee@bigals.com"
             },
             "to": {
-                "name": to_name,
-                "company": to_company,
+                "name": "TEST",
+                "company": "QUOTE",
                 "address1": to_address1,
                 "city": to_city,
                 "postalCode": to_postal,
@@ -88,13 +86,13 @@ if st.button("Get Quotes"):
                         "cost": 1.0
                     },
                     "customs": {
-                        "contentsDescription": customs_description,
+                        "contentsDescription": "Merchandise",
                         "originCountry": "US",
                         "customsTag": "Merchandise",
                         "items": [
                             {
                                 "sku": "SKU123",
-                                "description": customs_description,
+                                "description": "Merchandise",
                                 "qty": 1,
                                 "value": customs_value,
                                 "weight": 0.1,
@@ -106,13 +104,13 @@ if st.button("Get Quotes"):
                     "items": [
                         {
                             "marketSku": "SKU-TEST",
-                            "marketTitle": customs_description,
+                            "marketTitle": "Merchandise",
                             "orderedQty": 1,
                             "unitPrice": customs_value,
                             "weight": total_weight - 0.1,
                             "originCountry": "US",
                             "harmCode": harm_code,
-                            "customsDescription": customs_description,
+                            "customsDescription": "Merchandise",
                             "customsDeclaredValue": customs_value,
                             "length": 2,
                             "width": 2,
@@ -138,9 +136,6 @@ if st.button("Get Quotes"):
             results[label] = "❌ Invalid JSON response"
             continue
 
-        # ---------------------------
-        # ✅ Correct Rate Extraction
-        # ---------------------------
         try:
             shipment = data["shipmentItems"][0]
             selected = shipment["selectedRate"]
