@@ -1,40 +1,46 @@
 import streamlit as st
 import requests
 import json
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 API_ENDPOINT = "https://api.shipwise.com/api/v1/Rate"
 TOKEN = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50aWQiOiI5MDEzNTQ1IiwiaWF0IjoxNzYxNTk1MzQxLCJpc3MiOiJEZXNrdG9wU2hpcHBlckNsb3VkIiwiYXVkIjoiRFNDQVBJIn0.ZjNPRwA8HNxSWqxx8HMtLX86aLCQiG3Gc9jm0ve0J_zk1H751rDeUn7J2N83_Wur1_pxVTRyHmPw0GQdAPmn1w"
 
 SERVICE_IDS = {
-    "USPS First Class Intl (P60)": "P60",
-    "USPS Priority Mail Intl (P63)": "P63",
-    "UPS Worldwide Expedited (U80)": "U80",
-    "DHL Packet International (D72)": "D72",
-    "DHL Parcel Intl Standard (D86)": "D86",
+    "DHL Packet International": "D72",
+    "DHL Parcel Intl Standard": "D86",
+    "USPS First Class Intl": "P60",
+    "USPS Priority Mail Intl": "P63",
+    "UPS Worldwide Expedited": "U80"
 }
 
 st.title("📦 International Quoting Tool")
 
 st.header("Destination Address")
 
-to_address1 = st.text_input("Address", "845 Sherbrooke Street West")
-to_city = st.text_input("City", "Montreal")
-to_state = st.text_input("State / Province (ISO Code)", "QC")
-to_postal = st.text_input("Postal Code", "H3A 0G4")
-to_country = st.text_input("Country Code", "CA")
+to_address1 = st.text_input("Address", "")
+to_city = st.text_input("City", "")
+to_state = st.text_input("State / Province (ISO Code)", "")
+to_postal = st.text_input("Postal Code", "")
+to_country = st.text_input("Country Code", "")
 
 st.header("Package Details")
 
-total_weight = st.number_input("Total Weight (lbs)", value=1.0)
-length = st.number_input("Length (inches)", value=4.0)
-width = st.number_input("Width (inches)", value=4.0)
-height = st.number_input("Height (inches)", value=6.0)
+total_weight = st.number_input("Total Weight (lbs)", min_value=0.1, value=1.0)
+length = st.number_input("Length (inches)", min_value=0.1, value=4.0)
+width = st.number_input("Width (inches)", min_value=0.1, value=4.0)
+height = st.number_input("Height (inches)", min_value=0.1, value=6.0)
 
 st.header("Customs Information")
 
 harm_code = st.text_input("HS Code", "4901.04")
-customs_value = st.number_input("Declared Value", value=10.0)
+customs_value = st.number_input("Declared Value", min_value=0.1, value=10.0)
 country_of_mfg = st.text_input("Country of Manufacture", "US")
+
+
+
 
 if st.button("Get Quotes"):
 
@@ -71,8 +77,8 @@ if st.button("Get Quotes"):
                 "postalCode": to_postal,
                 "state": to_state,
                 "countryCode": to_country,
-                "countryName": "Canada",
-                "phone": "5033314000",
+                #"countryName": "Canada",
+                "phone": " ",
                 "email": "testEmployee@bigals.com"
             },
             "packages": [
@@ -112,9 +118,9 @@ if st.button("Get Quotes"):
                             "harmCode": harm_code,
                             "customsDescription": "Merchandise",
                             "customsDeclaredValue": customs_value,
-                            "length": 2,
-                            "width": 2,
-                            "height": 3
+                            "length": length,
+                            "width": width,
+                            "height": height
                         }
                     ],
                     "value": customs_value
@@ -123,6 +129,8 @@ if st.button("Get Quotes"):
         }
 
     headers = {"Authorization": f"Bearer {TOKEN}", "accept": "application/json"}
+
+    st.header("🚚 Quotes Results")
 
     results = {}
 
@@ -133,23 +141,50 @@ if st.button("Get Quotes"):
         try:
             data = response.json()
         except:
-            results[label] = "❌ Invalid JSON response"
+            #results[label] = "❌ Invalid JSON response"
             continue
 
         try:
             shipment = data["shipmentItems"][0]
             selected = shipment["selectedRate"]
-            tertiary = selected["tertiaryRateType"]["value"]
+            price = selected["tertiaryRateType"]["value"]
+            business_days = selected["transitTime"]["businessDays"]
+            delivery_days = selected["transitTime"]["estimatedDelivery"]
 
-            results[label] = tertiary
+            if rate_id == "D86": #DHL Parcel Intl Standard
+                canada_business_days = "4-8 business days"
+                world_business_days = "8-14 business days"
+                st.subheader(f" {label} ({rate_id})")
+                st.write(f"**Rate:** ${price}")
+                st.write(f"**Delivering to Europe & Canada:** {canada_business_days}")
+                st.write(f"**Delivering to rest of World:** {world_business_days}")
+                st.write("---")
+                
+
+            elif rate_id == "D72": #DHL Packet International
+                business_days = "4-8 business days"
+                st.subheader(f" {label} ({rate_id})")
+                st.write(f"**Rate:** ${price}")
+                st.write(f"**Business Days:** {business_days}")
+                st.write("---")
+
+            else:
+                st.subheader(f" {label} ({rate_id})")
+                st.write(f"**Rate:** ${price}")
+                st.write(f"**Business Days:** {business_days}")
+                st.write(f"**Estimated Delivery:** {delivery_days}")
+                st.write("---")
+
+            #results[label] = price
 
         except Exception as e:
-            results[label] = f"❌ Could not extract rate: {e}"
+            results[label] = f"Carrier Not Applicable"
+            #results[label] = f"❌ Could not extract rate: {e}"
 
-    st.header("📊 Shipping Quotes")
+    #st.header("📊 Shipping Quotes")
 
-    for carrier, quote in results.items():
-        st.write(f"**{carrier}:** {quote}")
+    #for carrier, quote in results.items():
+    #    st.write(f"**{carrier}:** {quote}")
 
 
 
